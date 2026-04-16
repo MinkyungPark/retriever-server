@@ -1,0 +1,20 @@
+services:
+  retriever:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: retriever
+    shm_size: "4g"
+    volumes:
+      - .:/workspace
+      - ${CACHE_BASE}/.cache/huggingface:/root/.cache/huggingface
+    environment:
+      HF_TOKEN: ${HF_TOKEN}
+      HF_HOME: /root/.cache/huggingface
+      HF_HUB_CACHE: /root/.cache/huggingface/hub
+      HUGGINGFACE_HUB_CACHE: /root/.cache/huggingface/hub
+      HF_DATASETS_CACHE: /root/.cache/huggingface/datasets
+    command: >
+      bash -c "uv pip install -e . --no-deps -q && python -m retriever_server.server"
+    ports:
+      - "3000:3000"

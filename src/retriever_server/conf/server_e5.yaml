@@ -1,0 +1,18 @@
+index_path: /workspace/data/wiki18/e5_HNSW64.index
+corpus_path: /workspace/data/wiki18/wiki-18.jsonl
+model: intfloat/e5-base-v2
+datasets: hotpotqa,2wikimultihopqa,musique
+max_length: 256
+ef_search: 256
+cache_enabled: true
+cache_size: 5000
+host: 0.0.0.0
+port: 3000
+workers: 1
+
+hydra:
+  run:
+    dir: .
+  output_subdir: null
+  job:
+    chdir: false
