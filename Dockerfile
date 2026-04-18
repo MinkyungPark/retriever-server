@@ -1,12 +1,17 @@
-FROM python:3.12-slim
+FROM nvidia/cuda:12.2.2-cudnn8-runtime-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 
 WORKDIR /workspace
 
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
-RUN pip install --no-cache-dir uv
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# uv standalone installer (no system python required)
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin:${PATH}"
 
 ENV UV_INDEX_STRATEGY=unsafe-best-match
 ENV UV_LINK_MODE=copy
@@ -14,8 +19,10 @@ ENV UV_LINK_MODE=copy
 COPY pyproject.toml /workspace/
 COPY src/ /workspace/src/
 
-RUN uv venv /opt/venv --python python3.12 \
+# Install CUDA torch FIRST so sentence-transformers picks the GPU build
+RUN uv venv /opt/venv --python 3.12 \
     && . /opt/venv/bin/activate \
+    && uv pip install torch --index-url https://download.pytorch.org/whl/cu121 \
     && uv pip install .
 
 ENV VIRTUAL_ENV=/opt/venv

@@ -5,6 +5,13 @@ services:
       dockerfile: Dockerfile
     container_name: retriever
     shm_size: "4g"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: [gpu]
     volumes:
       - .:/workspace
       - ${CACHE_BASE}/.cache/huggingface:/root/.cache/huggingface

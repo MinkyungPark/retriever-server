@@ -41,6 +41,8 @@ class E5Retriever:
         model_name: str,
         max_length: int = 256,
         ef_search: int | None = None,
+        device: str = "cpu",
+        encode_batch_size: int = 64,
     ):
         if not os.path.exists(corpus_path):
             raise FileNotFoundError(f"corpus not found: {corpus_path}")
@@ -48,7 +50,9 @@ class E5Retriever:
             raise FileNotFoundError(f"index not found: {index_path}")
 
         self.model_name = model_name
-        self.model = SentenceTransformer(model_name, device="cpu")
+        self.device = device
+        self.encode_batch_size = int(encode_batch_size)
+        self.model = SentenceTransformer(model_name, device=device)
         self.model.max_seq_length = max_length
 
         self.docs = self._load_corpus(corpus_path)
@@ -94,7 +98,12 @@ class E5Retriever:
     def _encode(self, queries: list[str]) -> np.ndarray:
         if "e5" in self.model_name.lower():
             queries = [f"query: {q}" for q in queries]
-        emb = self.model.encode(queries, normalize_embeddings=True)
+        emb = self.model.encode(
+            queries,
+            normalize_embeddings=True,
+            batch_size=self.encode_batch_size,
+            show_progress_bar=False,
+        )
         return np.asarray(emb, dtype="float32")
 
     def batch_search(self, queries: list[str], topk: int, return_scores: bool) -> list[list[dict[str, Any]]]:
@@ -160,6 +169,8 @@ def build_app_from_cfg(cfg: dict[str, Any]) -> FastAPI:
         model_name=str(cfg["model"]),
         max_length=int(cfg["max_length"]),
         ef_search=None if cfg.get("ef_search") is None else int(cfg["ef_search"]),
+        device=str(cfg.get("device", "cpu")),
+        encode_batch_size=int(cfg.get("encode_batch_size", 64)),
     )
     allowed_datasets = _parse_dataset_names(cfg["datasets"])
     cache_enabled = bool(cfg.get("cache_enabled", True))
