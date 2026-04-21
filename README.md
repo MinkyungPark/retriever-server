@@ -22,10 +22,7 @@ CACHE_BASE=/data2/yourname
 
 Retriever server:
 ```bash
-docker compose build retriever
 docker compose up -d retriever
-# or
-# docker compose up -d --build retriever
 ```
 
 
@@ -58,8 +55,6 @@ docker compose up -d retriever
 
 #### 3) Check server
 ```bash
-# own retriever
-# curl -X POST http://retriever:3000/retrieve \
 curl -X POST http://localhost:3000/retrieve \
   -H "Content-Type: application/json" \
   -d '{

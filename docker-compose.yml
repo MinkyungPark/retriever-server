@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: retriever
+    container_name: retriever-gpu
     shm_size: "4g"
     deploy:
       resources:
