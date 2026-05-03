@@ -1,9 +1,10 @@
 services:
-  retriever:
+  retriever-e5-cpu:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: retriever
+      dockerfile: Dockerfile.cpu
+    image: retriever-server-cpu
+    container_name: retriever-e5-cpu
     shm_size: "4g"
     volumes:
       - .:/workspace
@@ -15,14 +16,15 @@ services:
       HUGGINGFACE_HUB_CACHE: /root/.cache/huggingface/hub
       HF_DATASETS_CACHE: /root/.cache/huggingface/datasets
     command: >
-      bash -c "uv pip install -e . --no-deps -q && python -m retriever_server.server"
+      bash -c "uv pip install -e . --no-deps -q && python -m retriever_server.server --config-name=server_e5_cpu"
     ports:
       - "3000:3000"
 
   retriever-bm25:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.cpu
+    image: retriever-server-cpu
     container_name: retriever-bm25
     shm_size: "4g"
     volumes:
@@ -38,3 +40,31 @@ services:
       bash -c "uv pip install -e . --no-deps -q && python -m retriever_server.server --config-name=server_bm25"
     ports:
       - "3001:3001"
+
+  retriever-e5-gpu:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    image: retriever-server-gpu
+    container_name: retriever-e5-gpu
+    shm_size: "4g"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: [gpu]
+    volumes:
+      - .:/workspace
+      - ${CACHE_BASE}/.cache/huggingface:/root/.cache/huggingface
+    environment:
+      HF_TOKEN: ${HF_TOKEN}
+      HF_HOME: /root/.cache/huggingface
+      HF_HUB_CACHE: /root/.cache/huggingface/hub
+      HUGGINGFACE_HUB_CACHE: /root/.cache/huggingface/hub
+      HF_DATASETS_CACHE: /root/.cache/huggingface/datasets
+    command: >
+      bash -c "uv pip install -e . --no-deps -q && python -m retriever_server.server --config-name=server_e5_gpu"
+    ports:
+      - "3002:3002"

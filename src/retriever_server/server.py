@@ -63,6 +63,8 @@ def _build_retriever(cfg: dict[str, Any]) -> BaseRetriever:
             model_name=str(cfg["model"]),
             max_length=int(cfg["max_length"]),
             ef_search=None if cfg.get("ef_search") is None else int(cfg["ef_search"]),
+            device=str(cfg.get("device", "cpu")),
+            encode_batch_size=int(cfg.get("encode_batch_size", 64)),
         )
     if name == "bm25":
         from retriever_server.retrievers.bm25 import BM25Retriever
@@ -137,7 +139,7 @@ def app_factory() -> FastAPI:
     return build_app_from_cfg(json.loads(raw_cfg))
 
 
-@hydra.main(config_path="conf", config_name="server_e5", version_base=None)
+@hydra.main(config_path="conf", config_name="server_e5_cpu", version_base=None)
 def main(cfg: DictConfig) -> None:
     import uvicorn
 

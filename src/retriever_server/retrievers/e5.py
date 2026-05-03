@@ -16,12 +16,16 @@ class E5Retriever:
         model_name: str,
         max_length: int = 256,
         ef_search: int | None = None,
+        device: str = "cpu",
+        encode_batch_size: int = 64,
     ):
         if not os.path.exists(index_path):
             raise FileNotFoundError(f"index not found: {index_path}")
 
         self.model_name = model_name
-        self.model = SentenceTransformer(model_name, device="cpu")
+        self.device = device
+        self.encode_batch_size = int(encode_batch_size)
+        self.model = SentenceTransformer(model_name, device=device)
         self.model.max_seq_length = max_length
 
         self.corpus = Corpus(corpus_path)
@@ -45,7 +49,12 @@ class E5Retriever:
     def _encode(self, queries: list[str]) -> np.ndarray:
         if "e5" in self.model_name.lower():
             queries = [f"query: {q}" for q in queries]
-        emb = self.model.encode(queries, normalize_embeddings=True)
+        emb = self.model.encode(
+            queries,
+            normalize_embeddings=True,
+            batch_size=self.encode_batch_size,
+            show_progress_bar=False,
+        )
         return np.asarray(emb, dtype="float32")
 
     def batch_search(

@@ -2,13 +2,15 @@ retriever: e5
 index_path: /workspace/data/wiki18/e5_HNSW64.index
 corpus_path: /workspace/data/wiki18/wiki-18.jsonl
 model: intfloat/e5-base-v2
-datasets: hotpotqa,2wikimultihopqa,musique
+datasets: hotpotqa,2wikimultihopqa,musique,nq
 max_length: 256
 ef_search: 256
+device: cuda
+encode_batch_size: 128
 cache_enabled: true
 cache_size: 5000
 host: 0.0.0.0
-port: 3000
+port: 3002
 workers: 1
 
 hydra:
