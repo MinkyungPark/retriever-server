@@ -5,9 +5,15 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /workspace
 
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+RUN echo 'deb http://deb.debian.org/debian bookworm-backports main' \
+        > /etc/apt/sources.list.d/backports.list \
+    && apt-get update \
+    && apt-get install -y curl \
+    && apt-get install -y -t bookworm-backports openjdk-21-jdk-headless \
+    && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir uv
 
+ENV JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
 ENV UV_INDEX_STRATEGY=unsafe-best-match
 ENV UV_LINK_MODE=copy
 

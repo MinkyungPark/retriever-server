@@ -1,14 +1,14 @@
-retriever: e5
-index_path: /workspace/data/wiki18/e5_HNSW64.index
+retriever: bm25
+index_path: /workspace/data/wiki18/bm25
 corpus_path: /workspace/data/wiki18/wiki-18.jsonl
-model: intfloat/e5-base-v2
+k1: 0.9
+b: 0.4
+threads: 8
 datasets: hotpotqa,2wikimultihopqa,musique
-max_length: 256
-ef_search: 256
 cache_enabled: true
 cache_size: 5000
 host: 0.0.0.0
-port: 3000
+port: 3001
 workers: 1
 
 hydra:

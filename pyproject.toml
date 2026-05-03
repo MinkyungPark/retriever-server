@@ -11,6 +11,8 @@ dependencies = [
   "sentence-transformers>=5.2.2",
   "faiss-cpu>=1.13.2",
   "requests>=2.32.5",
+  "pyserini>=0.43.0",
+  "huggingface-hub>=0.30.0",
 ]
 
 [tool.setuptools.packages.find]

@@ -4,16 +4,14 @@ import os
 import threading
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
 from typing import Any
 
-import faiss
 import hydra
-import numpy as np
 from fastapi import FastAPI, HTTPException
 from omegaconf import DictConfig, OmegaConf
 from pydantic import BaseModel
-from sentence_transformers import SentenceTransformer
+
+from retriever_server.retrievers.base import BaseRetriever
 
 _RETRIEVER_CFG_ENV = "RETRIEVER_SERVER_CFG_JSON"
 
@@ -23,105 +21,6 @@ class SearchRequest(BaseModel):
     topk: int = 3
     return_scores: bool = True
     dataset: str | None = None
-
-
-@dataclass
-class DocItem:
-    doc_id: str
-    title: str
-    text: str
-    contents: str
-
-
-class E5Retriever:
-    def __init__(
-        self,
-        corpus_path: str,
-        index_path: str,
-        model_name: str,
-        max_length: int = 256,
-        ef_search: int | None = None,
-    ):
-        if not os.path.exists(corpus_path):
-            raise FileNotFoundError(f"corpus not found: {corpus_path}")
-        if not os.path.exists(index_path):
-            raise FileNotFoundError(f"index not found: {index_path}")
-
-        self.model_name = model_name
-        self.model = SentenceTransformer(model_name, device="cpu")
-        self.model.max_seq_length = max_length
-
-        self.docs = self._load_corpus(corpus_path)
-        self.index = faiss.read_index(index_path)
-        self._configure_index(ef_search=ef_search)
-        if self.index.ntotal != len(self.docs):
-            raise ValueError(
-                f"index/corpus size mismatch: index={self.index.ntotal}, corpus={len(self.docs)}"
-            )
-
-    def _configure_index(self, ef_search: int | None) -> None:
-        if ef_search is None:
-            return
-        ef = int(ef_search)
-        if ef <= 0:
-            raise ValueError("ef_search must be > 0")
-        if not hasattr(self.index, "hnsw"):
-            raise ValueError("ef_search is only valid for HNSW indexes")
-        self.index.hnsw.efSearch = ef
-
-    @staticmethod
-    def _load_corpus(corpus_path: str) -> list[DocItem]:
-        docs: list[DocItem] = []
-        with open(corpus_path, "r", encoding="utf-8") as f:
-            for i, line in enumerate(f):
-                row = json.loads(line)
-                doc_id = str(row.get("id", row.get("doc_id", i)))
-                contents = str(row.get("contents", "")).strip()
-                title = str(row.get("title", "")).strip()
-                text = str(row.get("text", "")).strip()
-                if not contents:
-                    contents = f"{title}\n{text}".strip() if title else text
-                if not text:
-                    if "\n" in contents:
-                        _, text = contents.split("\n", 1)
-                    else:
-                        text = contents
-                if not title and "\n" in contents:
-                    title = contents.split("\n", 1)[0]
-                docs.append(DocItem(doc_id=doc_id, title=title, text=text, contents=contents))
-        return docs
-
-    def _encode(self, queries: list[str]) -> np.ndarray:
-        if "e5" in self.model_name.lower():
-            queries = [f"query: {q}" for q in queries]
-        emb = self.model.encode(queries, normalize_embeddings=True)
-        return np.asarray(emb, dtype="float32")
-
-    def batch_search(self, queries: list[str], topk: int, return_scores: bool) -> list[list[dict[str, Any]]]:
-        if topk <= 0:
-            raise ValueError("topk must be > 0")
-        q_emb = self._encode(queries)
-        scores, idxs = self.index.search(q_emb, topk)
-
-        output: list[list[dict[str, Any]]] = []
-        for i, row in enumerate(idxs):
-            results: list[dict[str, Any]] = []
-            for j, doc_idx in enumerate(row):
-                if doc_idx < 0:
-                    continue
-                doc = self.docs[int(doc_idx)]
-                doc_payload = {
-                    "id": doc.doc_id,
-                    "title": doc.title,
-                    "text": doc.text,
-                    "contents": doc.contents,
-                }
-                if return_scores:
-                    results.append({"document": doc_payload, "score": float(scores[i][j])})
-                else:
-                    results.append(doc_payload)
-            output.append(results)
-        return output
 
 
 class QueryLRUCache:
@@ -153,14 +52,33 @@ def _parse_dataset_names(raw: Any) -> set[str]:
     return set()
 
 
+def _build_retriever(cfg: dict[str, Any]) -> BaseRetriever:
+    name = str(cfg.get("retriever", "e5")).lower()
+    if name == "e5":
+        from retriever_server.retrievers.e5 import E5Retriever
+
+        return E5Retriever(
+            corpus_path=str(cfg["corpus_path"]),
+            index_path=str(cfg["index_path"]),
+            model_name=str(cfg["model"]),
+            max_length=int(cfg["max_length"]),
+            ef_search=None if cfg.get("ef_search") is None else int(cfg["ef_search"]),
+        )
+    if name == "bm25":
+        from retriever_server.retrievers.bm25 import BM25Retriever
+
+        return BM25Retriever(
+            corpus_path=str(cfg["corpus_path"]),
+            index_path=str(cfg["index_path"]),
+            k1=float(cfg.get("k1", 0.9)),
+            b=float(cfg.get("b", 0.4)),
+            threads=int(cfg.get("threads", 8)),
+        )
+    raise ValueError(f"unknown retriever: {name}")
+
+
 def build_app_from_cfg(cfg: dict[str, Any]) -> FastAPI:
-    retriever = E5Retriever(
-        corpus_path=str(cfg["corpus_path"]),
-        index_path=str(cfg["index_path"]),
-        model_name=str(cfg["model"]),
-        max_length=int(cfg["max_length"]),
-        ef_search=None if cfg.get("ef_search") is None else int(cfg["ef_search"]),
-    )
+    retriever = _build_retriever(cfg)
     allowed_datasets = _parse_dataset_names(cfg["datasets"])
     cache_enabled = bool(cfg.get("cache_enabled", True))
     cache_size = int(cfg.get("cache_size", 5000))
