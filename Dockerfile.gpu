@@ -20,7 +20,7 @@ COPY src/ /workspace/src/
 
 RUN uv venv /opt/venv --python 3.12 \
     && . /opt/venv/bin/activate \
-    && uv pip install torch --index-url https://download.pytorch.org/whl/cu121 \
+    && uv pip install "torch>=2.1,<2.5" --index-url https://download.pytorch.org/whl/cu121 \
     && uv pip install .
 
 ENV VIRTUAL_ENV=/opt/venv
