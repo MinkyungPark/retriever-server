@@ -23,6 +23,10 @@ class SearchRequest(BaseModel):
     dataset: str | None = None
 
 
+class LookupRequest(BaseModel):
+    ids: list[str]
+
+
 class QueryLRUCache:
     def __init__(self, max_size: int):
         self.max_size = max(1, int(max_size))
@@ -128,6 +132,19 @@ def build_app_from_cfg(cfg: dict[str, Any]) -> FastAPI:
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
         return {"result": result}
+
+    @app.post("/lookup")
+    async def lookup(req: LookupRequest):
+        from retriever_server.retrievers.base import doc_to_payload
+
+        corpus = retriever.corpus
+        docs = []
+        for doc_id in req.ids:
+            doc = corpus.by_id.get(doc_id)
+            if doc is None:
+                raise HTTPException(status_code=404, detail=f"unknown doc id: {doc_id}")
+            docs.append(doc_to_payload(doc))
+        return {"result": docs}
 
     return app
 
