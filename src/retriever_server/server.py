@@ -159,9 +159,18 @@ def build_app_from_cfg(cfg: dict[str, Any]) -> FastAPI:
 
         corpus = retriever.corpus
         exclude_set = set(req.exclude)
-        pool = [d for d in corpus.docs if d.doc_id not in exclude_set]
-        sampled = _random.sample(pool, min(req.n, len(pool)))
-        return {"result": [doc_to_payload(d) for d in sampled]}
+        n_total = len(corpus.docs)
+        n_take = min(req.n, n_total - len(exclude_set))
+        chosen: list = []
+        seen: set[str] = set()
+        while len(chosen) < n_take:
+            idx = _random.randrange(n_total)
+            doc = corpus.docs[idx]
+            if doc.doc_id in exclude_set or doc.doc_id in seen:
+                continue
+            seen.add(doc.doc_id)
+            chosen.append(doc)
+        return {"result": [doc_to_payload(d) for d in chosen]}
 
     return app
 
