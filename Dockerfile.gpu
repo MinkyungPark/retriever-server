@@ -18,10 +18,11 @@ ENV UV_LINK_MODE=copy
 COPY pyproject.toml /workspace/
 COPY src/ /workspace/src/
 
+COPY constraints.txt /workspace/constraints.txt
 RUN uv venv /opt/venv --python 3.12 \
     && . /opt/venv/bin/activate \
     && uv pip install "torch==2.5.1" --index-url https://download.pytorch.org/whl/cu121 \
-    && uv pip install .
+    && uv pip install . --constraint constraints.txt
 
 ENV VIRTUAL_ENV=/opt/venv
 ENV PATH="/opt/venv/bin:${PATH}"
