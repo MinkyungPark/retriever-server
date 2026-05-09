@@ -27,6 +27,11 @@ class LookupRequest(BaseModel):
     ids: list[str]
 
 
+class RandomRequest(BaseModel):
+    n: int
+    exclude: list[str] = []
+
+
 class QueryLRUCache:
     def __init__(self, max_size: int):
         self.max_size = max(1, int(max_size))
@@ -145,6 +150,18 @@ def build_app_from_cfg(cfg: dict[str, Any]) -> FastAPI:
                 raise HTTPException(status_code=404, detail=f"unknown doc id: {doc_id}")
             docs.append(doc_to_payload(doc))
         return {"result": docs}
+
+    @app.post("/random")
+    async def random_docs(req: RandomRequest):
+        import random as _random
+
+        from retriever_server.retrievers.base import doc_to_payload
+
+        corpus = retriever.corpus
+        exclude_set = set(req.exclude)
+        pool = [d for d in corpus.docs if d.doc_id not in exclude_set]
+        sampled = _random.sample(pool, min(req.n, len(pool)))
+        return {"result": [doc_to_payload(d) for d in sampled]}
 
     return app
 
