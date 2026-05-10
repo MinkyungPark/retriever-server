@@ -139,7 +139,7 @@ def build_app_from_cfg(cfg: dict[str, Any]) -> FastAPI:
         return {"result": result}
 
     @app.post("/lookup")
-    async def lookup(req: LookupRequest):
+    def lookup(req: LookupRequest):
         from retriever_server.retrievers.base import doc_to_payload
 
         corpus = retriever.corpus
@@ -152,7 +152,7 @@ def build_app_from_cfg(cfg: dict[str, Any]) -> FastAPI:
         return {"result": docs}
 
     @app.post("/random")
-    async def random_docs(req: RandomRequest):
+    def random_docs(req: RandomRequest):
         import random as _random
 
         from retriever_server.retrievers.base import doc_to_payload
